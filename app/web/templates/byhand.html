@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-[1600px] mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">Big Companies (By-Hand Scrapers)</h1>
+            <p class="text-sm text-gray-500 mt-1">
+                {{ sources | length }} scrapers &middot;
+                <span class="text-green-600 font-medium">{{ total_jobs }} jobs</span> &middot;
+                <span class="text-blue-600 font-medium">{{ total_new_today }} new today</span>
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div id="scrape-btn-byhand">
+                <button hx-post="/scrape/byhand" hx-target="#scrape-btn-byhand" hx-swap="outerHTML"
+                        class="text-sm text-white bg-blue-600 border border-blue-700 rounded-lg px-3 py-1.5 hover:bg-blue-700 cursor-pointer">
+                    Refresh Big Companies</button>
+            </div>
+            <a href="/" class="text-sm text-blue-600 hover:underline">&larr; Dashboard</a>
+            <a href="/portals" class="text-sm text-blue-600 hover:underline">Portals</a>
+            <a href="/companies" class="text-sm text-blue-600 hover:underline">ATS Companies</a>
+            <a href="/matches" class="text-sm text-purple-600 hover:underline">Matches</a>
+        </div>
+    </div>
+
+    <!-- Day-by-day history -->
+    {% if days %}
+    <div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Daily Updates (last 14 days)</h2>
+        <div class="flex gap-1 items-end h-20">
+            {% for day in days %}
+            {% set max_h = 80 %}
+            {% set bar_h = (day.count / max_count * max_h) | int if max_count > 0 else 2 %}
+            <div class="flex flex-col items-center flex-1 min-w-0" title="{{ day.date }}: {{ day.count }} new jobs">
+                <span class="text-[10px] text-gray-500 mb-1">{{ day.count }}</span>
+                <div class="w-full bg-emerald-500 rounded-t" style="height: {{ bar_h if bar_h > 2 else 2 }}px"></div>
+                <span class="text-[9px] text-gray-400 mt-1 truncate w-full text-center">{{ day.date[5:] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sources table -->
+    <div class="bg-white rounded-lg shadow-sm border">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b">
+                <tr>
+                    <th class="text-left px-4 py-2 font-medium text-gray-600 w-8"></th>
+                    <th class="text-left px-4 py-2 font-medium text-gray-600">Scraper</th>
+                    <th class="text-left px-4 py-2 font-medium text-gray-600">Companies</th>
+                    <th class="text-right px-4 py-2 font-medium text-gray-600">Jobs</th>
+                    <th class="text-right px-4 py-2 font-medium text-gray-600">New Today</th>
+                    <th class="text-left px-4 py-2 font-medium text-gray-600">Last Scraped</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for s in sources %}
+
+            {% if s.is_header %}
+            {# ── Expanded source: one sub-row per company (e.g. Workday) ── #}
+            <tr class="border-b bg-gray-50">
+                <td class="px-4 py-2 text-gray-300 text-xs">&#9492;&#9472;</td>
+                <td class="px-4 py-2 font-semibold text-gray-400 text-xs uppercase tracking-wide">{{ s.name }}</td>
+                <td class="px-4 py-2"></td>
+                <td class="px-4 py-2 text-right text-gray-400 font-semibold text-sm">{{ s.job_count }}</td>
+                <td class="px-4 py-2 text-right">
+                    {% if s.new_today > 0 %}
+                    <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-medium">+{{ s.new_today }}</span>
+                    {% else %}
+                    <span class="text-gray-300">0</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2 text-gray-400 text-xs">{{ s.last_scraped or "Never" }}</td>
+            </tr>
+            {% for sub in s.sub_rows %}
+            {% set row_id = ("jobs-" + sub.slug + "-" + sub.company_filter) | replace(" ", "_") | replace("/", "_") | replace(".", "_") %}
+            <tr class="border-b hover:bg-blue-50 cursor-pointer"
+                hx-get="/byhand/{{ sub.slug }}/jobs?company={{ sub.company_filter | urlencode }}"
+                hx-target="#{{ row_id }}" hx-swap="innerHTML"
+                onclick="document.getElementById('{{ row_id }}').classList.toggle('hidden')">
+                <td class="px-4 py-2 pl-10 text-gray-400"><span>&#9654;</span></td>
+                <td class="px-4 py-2 pl-10 font-medium">{{ sub.name }}</td>
+                <td class="px-4 py-2"></td>
+                <td class="px-4 py-2 text-right">
+                    <span class="text-green-600 font-semibold">{{ sub.job_count }}</span>
+                </td>
+                <td class="px-4 py-2 text-right">
+                    {% if sub.new_today > 0 %}
+                    <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-medium">+{{ sub.new_today }}</span>
+                    {% else %}
+                    <span class="text-gray-300">0</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2 text-gray-500 text-xs">{{ sub.last_scraped or "Never" }}</td>
+            </tr>
+            <tr id="{{ row_id }}" class="hidden">
+                <td colspan="6" class="px-0 py-0"></td>
+            </tr>
+            {% endfor %}
+
+            {% else %}
+            {# ── Normal scraper: single row ── #}
+            <tr class="border-b hover:bg-gray-50 cursor-pointer"
+                hx-get="/byhand/{{ s.slug }}/jobs" hx-target="#jobs-{{ s.slug }}" hx-swap="innerHTML"
+                onclick="document.getElementById('jobs-{{ s.slug }}').classList.toggle('hidden')">
+                <td class="px-4 py-2 text-gray-400"><span>&#9654;</span></td>
+                <td class="px-4 py-2 font-medium">{{ s.name }}</td>
+                <td class="px-4 py-2 text-gray-600 text-xs">
+                    {% for c in s.companies %}
+                    <span class="inline-block bg-gray-100 rounded px-1.5 py-0.5 mb-0.5">{{ c.company }} ({{ c.count }})</span>
+                    {% endfor %}
+                </td>
+                <td class="px-4 py-2 text-right">
+                    <span class="text-green-600 font-semibold">{{ s.job_count }}</span>
+                </td>
+                <td class="px-4 py-2 text-right">
+                    {% if s.new_today > 0 %}
+                    <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-medium">+{{ s.new_today }}</span>
+                    {% else %}
+                    <span class="text-gray-300">0</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2 text-gray-500 text-xs">{{ s.last_scraped or "Never" }}</td>
+            </tr>
+            <tr id="jobs-{{ s.slug }}" class="hidden">
+                <td colspan="6" class="px-0 py-0"></td>
+            </tr>
+            {% endif %}
+
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if not sources %}
+    <div class="text-center py-12 text-gray-400">
+        <p class="text-lg mb-2">No by-hand jobs yet</p>
+        <p class="text-sm">
+            Run <code class="bg-gray-100 px-1 rounded">python by_hand/run_all_jobs.py</code>
+            then <code class="bg-gray-100 px-1 rounded">job-tracker scrape-byhand</code>.
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

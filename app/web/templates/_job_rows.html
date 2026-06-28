@@ -1,0 +1,93 @@
+{% if total is defined %}
+<div class="text-sm text-gray-500 mb-2">{{ total }} results — page {{ page }}</div>
+{% endif %}
+
+<div class="overflow-x-auto">
+<table class="w-full bg-white rounded-lg shadow-sm border text-sm table-fixed">
+    <thead class="bg-gray-50 border-b">
+        <tr>
+            <th class="text-left px-3 py-2 font-medium text-gray-600 w-[20%]">Title</th>
+            <th class="text-left px-3 py-2 font-medium text-gray-600 w-[12%] cursor-pointer hover:text-blue-600"
+                onclick="sortBy('company')">Company <span class="text-xs">&#x21C5;</span></th>
+            <th class="text-left px-3 py-2 font-medium text-gray-600 w-[11%]">Location</th>
+            <th class="text-left px-3 py-2 font-medium text-gray-600 w-[10%]">Category</th>
+            <th class="text-left px-3 py-2 font-medium text-gray-600 w-[9%]">Source</th>
+            <th class="text-left px-3 py-2 font-medium text-gray-600 w-[9%] cursor-pointer hover:text-blue-600"
+                onclick="sortBy('first_seen')">Date <span class="text-xs">&#x21C5;</span></th>
+            <th class="text-left px-3 py-2 font-medium text-gray-600 w-[10%]">Status</th>
+            <th class="text-left px-3 py-2 font-medium text-gray-600 w-[3%]"></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% if jobs %}
+    {% for job in jobs %}
+    <tr class="border-b hover:bg-blue-50 cursor-pointer" data-status="{{ job.status.value }}"
+        hx-get="/jobs/{{ job.uid }}" hx-target="#job-detail" hx-swap="innerHTML"
+        onclick="document.getElementById('job-detail').classList.remove('hidden'); document.getElementById('job-detail-overlay').classList.remove('hidden');">
+        <td class="px-3 py-2 truncate">
+            <a href="{{ job.url }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline"
+               onclick="event.stopPropagation()">{{ job.title }}</a>
+        </td>
+        <td class="px-3 py-2 text-gray-700 truncate">{{ job.company }}</td>
+        <td class="px-3 py-2 text-gray-500 truncate">{{ job.location }}</td>
+        <td class="px-3 py-2 text-xs">
+            {% if job.category %}
+            {% for cat in job.category.split(', ') %}
+            <span class="inline-block bg-blue-50 text-blue-700 rounded px-1.5 py-0.5 mb-0.5">{{ cat }}</span>
+            {% endfor %}
+            {% endif %}
+        </td>
+        <td class="px-3 py-2 text-gray-500 truncate text-xs">{{ job.source.split(':')[-1] if ':' in job.source else job.source }}</td>
+        <td class="px-3 py-2 text-gray-500">{{ job.published[:10] if job.published else job.first_seen.strftime("%Y-%m-%d") }}</td>
+        <td class="px-3 py-2" onclick="event.stopPropagation()">
+            <select class="border rounded px-1.5 py-0.5 text-xs bg-white w-full"
+                    hx-post="/jobs/{{ job.uid }}/status" hx-target="closest tr" hx-swap="outerHTML"
+                    hx-include="this" name="new_status">
+                {% for s in statuses %}
+                <option value="{{ s }}" {% if job.status.value == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td class="px-3 py-2 text-center">
+            {% if job.notes %}<span title="Has notes" class="text-yellow-500">&#9679;</span>{% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% if total is defined and total > 0 %}
+<div class="flex justify-center items-center gap-3 py-4">
+    {% if page is defined and page > 1 %}
+    <button class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-100 transition"
+            hx-get="/jobs" hx-target="#job-results" hx-swap="innerHTML"
+            hx-include="#filter-form [name]"
+            hx-vals='{"page": {{ page - 1 }}}'>
+        &larr; Previous
+    </button>
+    {% endif %}
+    <span class="text-sm text-gray-500">Page {{ page }}</span>
+    {% if has_next is defined and has_next %}
+    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition"
+            hx-get="/jobs" hx-target="#job-results" hx-swap="innerHTML"
+            hx-include="#filter-form [name]"
+            hx-vals='{"page": {{ page + 1 }}}'>
+        Next &rarr;
+    </button>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<table class="w-full bg-white rounded-lg shadow-sm border text-sm">
+    <tbody>
+    <tr>
+        <td colspan="8" class="px-3 py-12 text-center text-gray-400">
+            <p class="text-lg mb-2">No jobs found</p>
+            <p class="text-sm">Run <code class="bg-gray-100 px-1 rounded">job-tracker scrape</code> to fetch vacancies, or adjust your filters.</p>
+        </td>
+    </tr>
+    </tbody>
+</table>
+{% endif %}

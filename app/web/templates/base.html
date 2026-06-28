@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <style>
+        [data-status="NEW"] { --status-color: #3b82f6; }
+        [data-status="SAVED"] { --status-color: #8b5cf6; }
+        [data-status="APPLIED"] { --status-color: #f59e0b; }
+        [data-status="INTERVIEW"] { --status-color: #10b981; }
+        [data-status="OFFER"] { --status-color: #22c55e; }
+        [data-status="REJECTED"] { --status-color: #ef4444; }
+        [data-status="ARCHIVED"] { --status-color: #6b7280; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-color); display: inline-block; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+    {% block content %}{% endblock %}
+</body>
+</html>

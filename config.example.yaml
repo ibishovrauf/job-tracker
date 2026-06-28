@@ -1,0 +1,24 @@
+keywords: [Werkstudent, Werkstudentin, Working Student, Praktikum, Praktikant, Intern, Internship]
+location: ""              # "" = all of Germany; else e.g. "Berlin"
+radius_km: 50
+published_within_days: 2
+database_url: "sqlite:///./jobtracker.sqlite3"
+
+sources:
+  arbeitsagentur: true
+  arbeitnow: true
+  adzuna: false           # set true once you add keys below / via env
+  ats: true
+
+adzuna:
+  app_id: ""              # or env ADZUNA_APP_ID
+  app_key: ""             # or env ADZUNA_APP_KEY
+
+# Grow this list anytime — token is the slug in the company's careers URL.
+# e.g. jobs.lever.co/spotify -> {provider: lever, token: spotify}
+ats:
+  companies:
+    - { provider: greenhouse, token: examplehq, name: "Example HQ" }
+    - { provider: lever,      token: examplehq }
+    - { provider: ashby,      token: examplehq }
+    - { provider: personio,   token: examplehq }

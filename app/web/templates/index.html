@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-[1600px] mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-4 mb-2">
+            <h1 class="text-2xl font-bold">Job Tracker</h1>
+            <a href="/byhand" class="text-sm text-blue-600 hover:underline">Big Companies &rarr;</a>
+            <a href="/portals" class="text-sm text-gray-500 hover:underline">Portals</a>
+            <a href="/companies" class="text-sm text-gray-500 hover:underline">ATS Companies</a>
+            <a href="/matches" class="text-sm text-purple-600 hover:underline font-medium">Matches &rarr;</a>
+            <div class="ml-auto">
+                <div id="scrape-btn-ats">
+                    <button hx-post="/scrape/ats" hx-target="#scrape-btn-ats" hx-swap="outerHTML"
+                            class="text-sm text-white bg-blue-600 border border-blue-700 rounded-lg px-3 py-1.5 hover:bg-blue-700 cursor-pointer">
+                        Refresh ATS</button>
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-2 text-sm">
+            <span class="bg-white border rounded-full px-3 py-1">Total: <strong>{{ stats.total }}</strong></span>
+            <span class="bg-blue-50 border border-blue-200 rounded-full px-3 py-1">New today: <strong>{{ stats.new_today }}</strong></span>
+            {% for s, count in stats.by_status.items() %}
+            <span class="bg-white border rounded-full px-3 py-1" data-status="{{ s.value if s.value is defined else s }}">
+                <span class="status-dot mr-1"></span>{{ s.value if s.value is defined else s }}: <strong>{{ count }}</strong>
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form id="filter-form" class="bg-white rounded-lg shadow-sm border p-4 mb-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3"
+          hx-get="/jobs" hx-target="#job-results" hx-trigger="change, input delay:400ms from:find input[type=text]"
+          hx-include="[name]" hx-vals='{"page": 1}'>
+        <div>
+            <label for="q" class="block text-xs font-medium text-gray-500 mb-1">Search</label>
+            <input type="text" name="q" id="q" value="{{ q }}" placeholder="Title or company..."
+                   class="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+        </div>
+        <div class="col-span-2 md:col-span-4 lg:col-span-5">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
+            <div class="flex flex-wrap gap-1.5" id="category-chips">
+                {% for c in categories %}
+                <button type="button"
+                        class="cat-chip px-2.5 py-1 rounded-full text-xs border cursor-pointer transition
+                               {% if c in selected_categories %}bg-blue-600 text-white border-blue-600{% else %}bg-white text-gray-600 border-gray-300 hover:border-blue-400{% endif %}"
+                        data-cat="{{ c }}"
+                        onclick="toggleCat(this)">{{ c }}</button>
+                {% endfor %}
+                <!-- Hidden inputs rendered by JS -->
+                <div id="category-inputs">
+                {% for c in selected_categories %}
+                <input type="hidden" name="category" value="{{ c }}">
+                {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div>
+            <label for="status" class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+            <select name="status" id="status" class="w-full border rounded px-2 py-1.5 text-sm">
+                <option value="">All</option>
+                {% for s in statuses %}
+                <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="location" class="block text-xs font-medium text-gray-500 mb-1">Location</label>
+            <input type="text" name="location" id="location" value="{{ location }}" placeholder="e.g. Berlin"
+                   class="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+        </div>
+        <div>
+            <label for="remote" class="block text-xs font-medium text-gray-500 mb-1">Remote</label>
+            <select name="remote" id="remote" class="w-full border rounded px-2 py-1.5 text-sm">
+                <option value="">Any</option>
+                <option value="yes" {% if remote == "yes" %}selected{% endif %}>Yes</option>
+                <option value="no" {% if remote == "no" %}selected{% endif %}>No</option>
+            </select>
+        </div>
+        <div>
+            <label for="source" class="block text-xs font-medium text-gray-500 mb-1">Source</label>
+            <select name="source" id="source" class="w-full border rounded px-2 py-1.5 text-sm">
+                <option value="">All</option>
+                {% for s in sources %}
+                <option value="{{ s }}" {% if source == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="job_type" class="block text-xs font-medium text-gray-500 mb-1">Job Type</label>
+            <input type="text" name="job_type" id="job_type" value="{{ job_type }}" placeholder="e.g. Praktikum"
+                   class="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+        </div>
+        <div>
+            <label for="date_from" class="block text-xs font-medium text-gray-500 mb-1">From</label>
+            <input type="date" name="date_from" id="date_from" value="{{ date_from }}"
+                   class="w-full border rounded px-2 py-1.5 text-sm">
+        </div>
+        <div>
+            <label for="date_to" class="block text-xs font-medium text-gray-500 mb-1">To</label>
+            <input type="date" name="date_to" id="date_to" value="{{ date_to }}"
+                   class="w-full border rounded px-2 py-1.5 text-sm">
+        </div>
+        <input type="hidden" name="sort" id="sort-input" value="{{ sort }}">
+        <input type="hidden" name="order" id="order-input" value="{{ order }}">
+        <div class="flex items-end gap-2">
+            <a href="/export.csv" class="text-sm text-blue-600 hover:underline">Export CSV</a>
+        </div>
+    </form>
+
+    <!-- Results table -->
+    <div id="job-results">
+        {% include "_job_rows.html" %}
+    </div>
+
+    <!-- Detail panel (slide-over) -->
+    <div id="job-detail-overlay" class="hidden fixed inset-0 bg-black/30 z-40"
+         onclick="this.classList.add('hidden'); document.getElementById('job-detail').classList.add('hidden'); document.getElementById('job-detail').innerHTML = '';"></div>
+    <div id="job-detail" class="hidden fixed right-0 top-0 h-full w-[420px] bg-white shadow-xl z-50 overflow-y-auto"></div>
+</div>
+
+<script>
+function sortBy(col) {
+    const sortInput = document.getElementById('sort-input');
+    const orderInput = document.getElementById('order-input');
+    if (sortInput.value === col) {
+        orderInput.value = orderInput.value === 'desc' ? 'asc' : 'desc';
+    } else {
+        sortInput.value = col;
+        orderInput.value = 'desc';
+    }
+    htmx.trigger(document.getElementById('filter-form'), 'change');
+}
+
+function toggleCat(btn) {
+    const cat = btn.dataset.cat;
+    const container = document.getElementById('category-inputs');
+    const existing = container.querySelector('input[value="' + CSS.escape(cat) + '"]');
+    if (existing) {
+        existing.remove();
+    } else {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'category';
+        input.value = cat;
+        container.appendChild(input);
+    }
+    syncChipStyles();
+    htmx.trigger(document.getElementById('filter-form'), 'change');
+}
+
+function syncChipStyles() {
+    const selected = new Set(
+        Array.from(document.querySelectorAll('#category-inputs input')).map(i => i.value)
+    );
+    document.querySelectorAll('.cat-chip').forEach(btn => {
+        if (selected.has(btn.dataset.cat)) {
+            btn.className = 'cat-chip px-2.5 py-1 rounded-full text-xs border cursor-pointer transition bg-blue-600 text-white border-blue-600';
+        } else {
+            btn.className = 'cat-chip px-2.5 py-1 rounded-full text-xs border cursor-pointer transition bg-white text-gray-600 border-gray-300 hover:border-blue-400';
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% if ranked_jobs %}
+<div class="bg-white rounded-lg shadow-sm border">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+            <tr>
+                <th class="text-right px-3 py-2 font-medium text-gray-600 w-20">Match</th>
+                <th class="text-left px-3 py-2 font-medium text-gray-600">Title</th>
+                <th class="text-left px-3 py-2 font-medium text-gray-600">Company</th>
+                <th class="text-left px-3 py-2 font-medium text-gray-600">Location</th>
+                <th class="text-left px-3 py-2 font-medium text-gray-600">Category</th>
+                <th class="text-left px-3 py-2 font-medium text-gray-600">Date</th>
+                <th class="text-left px-3 py-2 font-medium text-gray-600">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for job, pct in ranked_jobs %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50" id="match-row-{{ job.uid }}">
+            <td class="px-3 py-2 text-right">
+                {% if pct >= 80 %}
+                <span class="inline-block bg-green-100 text-green-800 rounded-full px-2 py-0.5 text-xs font-bold">{{ pct }}%</span>
+                {% elif pct >= 60 %}
+                <span class="inline-block bg-blue-100 text-blue-800 rounded-full px-2 py-0.5 text-xs font-bold">{{ pct }}%</span>
+                {% else %}
+                <span class="inline-block bg-gray-100 text-gray-700 rounded-full px-2 py-0.5 text-xs font-medium">{{ pct }}%</span>
+                {% endif %}
+            </td>
+            <td class="px-3 py-2">
+                <a href="{{ job.url }}" target="_blank" rel="noopener"
+                   class="text-blue-600 hover:underline">{{ job.title }}</a>
+            </td>
+            <td class="px-3 py-2 text-gray-700 text-xs">{{ job.company }}</td>
+            <td class="px-3 py-2 text-gray-500 text-xs">{{ job.location }}</td>
+            <td class="px-3 py-2">
+                {% if job.category %}
+                {% for cat in job.category.split(', ') %}
+                <span class="inline-block bg-blue-50 text-blue-700 rounded px-1.5 py-0.5 text-xs">{{ cat }}</span>
+                {% endfor %}
+                {% endif %}
+            </td>
+            <td class="px-3 py-2 text-gray-500 text-xs">{{ job.published[:10] if job.published else job.first_seen.strftime("%Y-%m-%d") }}</td>
+            <td class="px-3 py-2">
+                <select class="border rounded px-1 py-0.5 text-xs bg-white"
+                        hx-post="/jobs/{{ job.uid }}/status" hx-target="#match-row-{{ job.uid }}" hx-swap="outerHTML"
+                        hx-include="this" name="new_status">
+                    {% for s in statuses %}
+                    <option value="{{ s }}" {% if job.status.value == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-12 text-gray-400">
+    <p class="text-lg mb-2">No matches found</p>
+    <p class="text-sm">Try lowering the minimum match percentage, or run
+        <code class="bg-gray-100 px-1 rounded">job-tracker embed-refresh</code> to embed new jobs.</p>
+</div>
+{% endif %}

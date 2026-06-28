@@ -1,0 +1,45 @@
+<div class="bg-gray-50 border-t border-b px-8 py-3">
+    {% if jobs %}
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-xs text-gray-500">
+                <th class="text-left py-1 font-medium">Title</th>
+                <th class="text-left py-1 font-medium">Location</th>
+                <th class="text-left py-1 font-medium">Category</th>
+                <th class="text-left py-1 font-medium">Date</th>
+                <th class="text-left py-1 font-medium">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for job in jobs %}
+        <tr class="border-b border-gray-200 last:border-0">
+            <td class="py-1.5">
+                <a href="{{ job.url }}" target="_blank" rel="noopener"
+                   class="text-blue-600 hover:underline">{{ job.title }}</a>
+            </td>
+            <td class="py-1.5 text-gray-500">{{ job.location }}</td>
+            <td class="py-1.5">
+                {% if job.category %}
+                {% for cat in job.category.split(', ') %}
+                <span class="inline-block bg-blue-50 text-blue-700 rounded px-1.5 py-0.5 text-xs">{{ cat }}</span>
+                {% endfor %}
+                {% endif %}
+            </td>
+            <td class="py-1.5 text-gray-500 text-xs">{{ job.published[:10] if job.published else job.first_seen.strftime("%Y-%m-%d") }}</td>
+            <td class="py-1.5" onclick="event.stopPropagation()">
+                <select class="border rounded px-1 py-0.5 text-xs bg-white"
+                        hx-post="/jobs/{{ job.uid }}/status" hx-target="closest tr" hx-swap="outerHTML"
+                        hx-include="this" name="new_status">
+                    {% for s in statuses %}
+                    <option value="{{ s }}" {% if job.status.value == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-gray-400 text-sm py-2">No jobs scraped yet. Run <code class="bg-gray-100 px-1 rounded text-xs">job-tracker scrape-portals</code></p>
+    {% endif %}
+</div>

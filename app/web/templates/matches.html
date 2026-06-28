@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-[1600px] mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">Matches</h1>
+            <p class="text-sm text-gray-500 mt-1">
+                Jobs ranked by semantic similarity to your APPLIED + SAVED titles
+            </p>
+        </div>
+        <div class="flex gap-3">
+            <a href="/" class="text-sm text-blue-600 hover:underline">&larr; Dashboard</a>
+            <a href="/byhand" class="text-sm text-blue-600 hover:underline">Big Companies</a>
+            <a href="/portals" class="text-sm text-blue-600 hover:underline">Portals</a>
+            <a href="/companies" class="text-sm text-blue-600 hover:underline">ATS Companies</a>
+        </div>
+    </div>
+
+    {% if not enabled %}
+    <!-- Embeddings extra not installed -->
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+        <p class="text-yellow-800 text-lg font-medium mb-2">Embeddings not installed</p>
+        <p class="text-yellow-700 text-sm mb-4">
+            The semantic matching feature requires the embeddings extra.
+        </p>
+        <code class="bg-white border rounded px-3 py-1.5 text-sm">uv pip install -e ".[embeddings]"</code>
+    </div>
+
+    {% elif not has_profile %}
+    <!-- No APPLIED/SAVED jobs -->
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+        <p class="text-gray-600 text-lg font-medium mb-2">No profile yet</p>
+        <p class="text-gray-500 text-sm">
+            Mark some jobs as <strong>APPLIED</strong> or <strong>SAVED</strong> on the
+            <a href="/" class="text-blue-600 hover:underline">Dashboard</a>, then run
+            <code class="bg-white border rounded px-1.5 py-0.5 text-xs">job-tracker embed-refresh</code>
+            to build your profile.
+        </p>
+    </div>
+
+    {% else %}
+
+    {% if unembedded_count > 0 %}
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6 text-sm text-amber-800">
+        <strong>{{ unembedded_count }}</strong> jobs not yet embedded. Run
+        <code class="bg-white px-1 py-0.5 rounded border">job-tracker embed-refresh</code>
+        to update rankings.
+    </div>
+    {% endif %}
+
+    <!-- Your Profile -->
+    <div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Your Profile ({{ profile_jobs | length }} jobs)</h2>
+        <div class="flex flex-wrap gap-1.5">
+            {% for job in profile_jobs %}
+            <a href="{{ job.url }}" target="_blank" rel="noopener"
+               class="inline-block text-xs rounded-full px-2.5 py-1 border
+                      {% if job.status.value == 'APPLIED' %}bg-amber-50 border-amber-300 text-amber-800
+                      {% else %}bg-purple-50 border-purple-300 text-purple-800{% endif %}
+                      hover:opacity-80 transition"
+               title="{{ job.company }} &mdash; {{ job.title }}">
+                {{ job.title | truncate(50) }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form id="matches-filter" class="bg-white rounded-lg shadow-sm border p-4 mb-6 flex flex-wrap gap-4 items-end"
+          hx-get="/matches/jobs" hx-target="#matches-results" hx-trigger="change"
+          hx-include="[name]">
+        <div>
+            <label for="status" class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+            <select name="status" id="status" class="border rounded px-2 py-1.5 text-sm">
+                <option value="">NEW (default)</option>
+                {% for s in statuses %}
+                <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="min_pct" class="block text-xs font-medium text-gray-500 mb-1">
+                Min Match: <span id="min-pct-val">{{ min_pct }}</span>%
+            </label>
+            <input type="range" name="min_pct" id="min_pct" min="0" max="95" step="5"
+                   value="{{ min_pct }}" class="w-40"
+                   oninput="document.getElementById('min-pct-val').textContent = this.value">
+        </div>
+        <div class="text-sm text-gray-500">
+            Showing <strong>{{ ranked_jobs | length }}</strong> matches
+        </div>
+    </form>
+
+    <!-- Results -->
+    <div id="matches-results">
+        {% include "_matches_rows.html" %}
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}

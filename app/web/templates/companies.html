@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">Priority Companies</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ companies | length }} companies configured — {{ total_jobs }} jobs scraped</p>
+        </div>
+        <a href="/" class="text-sm text-blue-600 hover:underline">&larr; Back to Dashboard</a>
+    </div>
+
+    <!-- Add company form -->
+    <div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Add Company</h2>
+        <form hx-post="/companies" hx-target="#company-list" hx-swap="innerHTML"
+              class="flex flex-wrap gap-3 items-end">
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Provider</label>
+                <select name="provider" required class="border rounded px-2 py-1.5 text-sm">
+                    <option value="greenhouse">Greenhouse</option>
+                    <option value="lever">Lever</option>
+                    <option value="ashby">Ashby</option>
+                    <option value="personio">Personio</option>
+                    <option value="smartrecruiters">SmartRecruiters</option>
+                </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs text-gray-500 mb-1">Token <span class="text-gray-400">(slug from careers URL)</span></label>
+                <input type="text" name="token" required placeholder="e.g. spotify, BoschGroup"
+                       class="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+            </div>
+            <div class="flex-1 min-w-[150px]">
+                <label class="block text-xs text-gray-500 mb-1">Display Name <span class="text-gray-400">(optional)</span></label>
+                <input type="text" name="name" placeholder="e.g. Spotify"
+                       class="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+            </div>
+            <button type="submit" class="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition">
+                + Add
+            </button>
+        </form>
+    </div>
+
+    <!-- Company list -->
+    <div id="company-list">
+        {% include "_company_list.html" %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+<div class="p-5">
+    <div class="flex justify-between items-start mb-4">
+        <h2 class="text-lg font-semibold pr-4">
+            <a href="{{ job.url }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline">{{ job.title }}</a>
+        </h2>
+        <button onclick="document.getElementById('job-detail').classList.add('hidden'); document.getElementById('job-detail-overlay').classList.add('hidden');"
+                class="text-gray-400 hover:text-gray-600 text-2xl leading-none shrink-0">&times;</button>
+    </div>
+
+    <dl class="text-sm space-y-2 mb-5">
+        <div class="flex gap-2">
+            <dt class="text-gray-500 w-20 shrink-0">Company</dt>
+            <dd class="font-medium">{{ job.company }}</dd>
+        </div>
+        <div class="flex gap-2">
+            <dt class="text-gray-500 w-20 shrink-0">Location</dt>
+            <dd>{{ job.location }}</dd>
+        </div>
+        <div class="flex gap-2">
+            <dt class="text-gray-500 w-20 shrink-0">Source</dt>
+            <dd>{{ job.source }}</dd>
+        </div>
+        <div class="flex gap-2">
+            <dt class="text-gray-500 w-20 shrink-0">Published</dt>
+            <dd>{{ job.published or "N/A" }}</dd>
+        </div>
+        <div class="flex gap-2">
+            <dt class="text-gray-500 w-20 shrink-0">Type</dt>
+            <dd>{{ job.job_type or "N/A" }}</dd>
+        </div>
+        <div class="flex gap-2">
+            <dt class="text-gray-500 w-20 shrink-0">Remote</dt>
+            <dd>{{ "Yes" if job.remote else "No" }}</dd>
+        </div>
+        <div class="flex gap-2">
+            <dt class="text-gray-500 w-20 shrink-0">First seen</dt>
+            <dd>{{ job.first_seen.strftime("%Y-%m-%d %H:%M") }}</dd>
+        </div>
+        <div class="flex gap-2 items-center">
+            <dt class="text-gray-500 w-20 shrink-0">Status</dt>
+            <dd data-status="{{ job.status.value }}">
+                <span class="status-dot mr-1"></span>
+                <select class="border rounded px-2 py-1 text-sm bg-white"
+                        hx-post="/jobs/{{ job.uid }}/status" hx-target="#job-detail" hx-swap="innerHTML"
+                        hx-include="this" name="new_status">
+                    {% for s in statuses %}
+                    <option value="{{ s }}" {% if job.status.value == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </dd>
+        </div>
+    </dl>
+
+    {% if job.description %}
+    <details class="mb-4" open>
+        <summary class="text-sm font-medium text-gray-600 cursor-pointer mb-2">Description</summary>
+        <div class="text-sm text-gray-700 max-h-60 overflow-y-auto bg-gray-50 rounded p-3">
+            {{ job.description | safe }}
+        </div>
+    </details>
+    {% endif %}
+
+    <!-- Notes -->
+    <div class="mb-4">
+        <label for="notes-input" class="block text-sm font-medium text-gray-600 mb-1">Notes</label>
+        <textarea id="notes-input" name="notes" rows="4"
+                  class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  hx-post="/jobs/{{ job.uid }}/notes" hx-target="#job-detail" hx-swap="innerHTML"
+                  hx-trigger="change, keyup delay:1500ms changed"
+                  hx-include="this">{{ job.notes }}</textarea>
+    </div>
+
+    {% if events %}
+    <details>
+        <summary class="text-sm font-medium text-gray-600 cursor-pointer">Status History</summary>
+        <ul class="mt-2 text-xs text-gray-500 space-y-1">
+            {% for e in events %}
+            <li class="flex gap-2">
+                <span class="text-gray-400">{{ e.at.strftime("%Y-%m-%d %H:%M") }}</span>
+                <span>{{ e.from_status or "—" }} &rarr; {{ e.to_status }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </details>
+    {% endif %}
+</div>

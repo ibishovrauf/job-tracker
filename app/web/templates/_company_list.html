@@ -1,0 +1,45 @@
+<table class="w-full bg-white rounded-lg shadow-sm border text-sm">
+    <thead class="bg-gray-50 border-b">
+        <tr>
+            <th class="text-left px-4 py-2 font-medium text-gray-600">Company</th>
+            <th class="text-left px-4 py-2 font-medium text-gray-600">Provider</th>
+            <th class="text-left px-4 py-2 font-medium text-gray-600">Token</th>
+            <th class="text-right px-4 py-2 font-medium text-gray-600">Jobs</th>
+            <th class="text-right px-4 py-2 font-medium text-gray-600 w-20"></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% if companies %}
+    {% for c in companies %}
+    <tr class="border-b hover:bg-gray-50">
+        <td class="px-4 py-2 font-medium">{{ c.name or c.token }}</td>
+        <td class="px-4 py-2">
+            <span class="inline-block bg-gray-100 text-gray-600 rounded px-2 py-0.5 text-xs">{{ c.provider }}</span>
+        </td>
+        <td class="px-4 py-2 text-gray-500 font-mono text-xs">{{ c.token }}</td>
+        <td class="px-4 py-2 text-right">
+            {% if c.job_count > 0 %}
+            <span class="text-green-600 font-medium">{{ c.job_count }}</span>
+            {% else %}
+            <span class="text-gray-400">0</span>
+            {% endif %}
+        </td>
+        <td class="px-4 py-2 text-right">
+            <button class="text-red-400 hover:text-red-600 text-xs"
+                    hx-delete="/companies/{{ c.provider }}/{{ c.token }}"
+                    hx-target="#company-list" hx-swap="innerHTML"
+                    hx-confirm="Remove {{ c.name or c.token }}?">
+                Remove
+            </button>
+        </td>
+    </tr>
+    {% endfor %}
+    {% else %}
+    <tr>
+        <td colspan="5" class="px-4 py-8 text-center text-gray-400">
+            No companies configured. Add one above.
+        </td>
+    </tr>
+    {% endif %}
+    </tbody>
+</table>
