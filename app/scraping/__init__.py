@@ -20,7 +20,7 @@ def register(name: str):
 
 def discover() -> None:
     """Import all source modules so they self-register."""
-    from . import adzuna, arbeitsagentur, arbeitnow, ats, byhand  # noqa: F401
+    from . import adzuna, arbeitsagentur, arbeitnow, ats, byhand, hu_boards  # noqa: F401
 
     try:
         from . import portals  # noqa: F401

@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import logging
+import re
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import date, timedelta
 
 import httpx
 
 from app.config import ATSCompany, Settings
 
 from . import register
+from .ats_extra import EXTRA_FETCHERS
 from .base import RawJob, Source
 
 ATS_TIMEOUT = 8  # seconds — fast timeout; real boards respond in <2s
@@ -153,6 +156,8 @@ def _fetch_smartrecruiters_all(company: ATSCompany) -> list[RawJob]:
     limit = 100
     while True:
         url = f"https://api.smartrecruiters.com/v1/companies/{company.token}/postings?limit={limit}&offset={offset}"
+        if country := company.params.get("country"):
+            url += f"&country={country}"
         try:
             resp = httpx.get(url, timeout=ATS_TIMEOUT)
             resp.raise_for_status()
@@ -168,13 +173,125 @@ def _fetch_smartrecruiters_all(company: ATSCompany) -> list[RawJob]:
     return all_jobs
 
 
+WORKDAY_PAGE_SIZE = 20  # Workday rejects larger pages
+WORKDAY_MAX_PAGES = 5  # per keyword
+_MULTI_LOCATION_RE = re.compile(r"^\d+ Locations$", re.IGNORECASE)
+
+
+def _parse_workday_posted(posted_on: str, today: date | None = None) -> str:
+    """Turn Workday's relative "Posted 3 Days Ago" into an ISO date.
+
+    Args:
+        posted_on: The postedOn text from Workday ("Posted Today", "Posted 30+ Days Ago", ...).
+        today: Reference date; defaults to today (injectable for tests).
+
+    Returns:
+        "YYYY-MM-DD", or "" when the text is not recognised.
+    """
+    today = today or date.today()
+    text = posted_on.lower()
+    if "today" in text:
+        return today.isoformat()
+    if "yesterday" in text:
+        return (today - timedelta(days=1)).isoformat()
+    m = re.search(r"(\d+)\+? days? ago", text)
+    if m:
+        return (today - timedelta(days=int(m.group(1)))).isoformat()
+    return ""
+
+
+def _workday_base(company: ATSCompany) -> str:
+    """Return the CXS API base URL, e.g. https://ms.wd5.myworkdayjobs.com/wday/cxs/ms/External."""
+    return f"https://{company.host}/wday/cxs/{company.token}/{company.site}"
+
+
+def _workday_all_locations(company: ATSCompany, external_path: str) -> str:
+    """Fetch the full location list for a posting that Workday shows as "N Locations".
+
+    Args:
+        company: The Workday company entry.
+        external_path: The posting's externalPath (e.g. "/job/Budapest/Intern_R123").
+
+    Returns:
+        All locations joined by "; ", or "" if the detail request fails.
+    """
+    try:
+        resp = httpx.get(f"{_workday_base(company)}{external_path}", timeout=ATS_TIMEOUT)
+        resp.raise_for_status()
+    except httpx.HTTPError:
+        return ""
+    info = resp.json().get("jobPostingInfo", {})
+    locations = [info.get("location", "")] + list(info.get("additionalLocations", []))
+    return "; ".join(loc for loc in locations if loc)
+
+
+def _parse_workday(data: dict, company: ATSCompany) -> list[RawJob]:
+    jobs = []
+    org_name = company.name or company.token
+    for item in data.get("jobPostings", []):
+        path = item.get("externalPath", "")
+        if not path:
+            continue
+        bullets = item.get("bulletFields") or []
+        location = item.get("locationsText", "")
+        if _MULTI_LOCATION_RE.match(location):
+            location = _workday_all_locations(company, path) or location
+        jobs.append(RawJob(
+            source=f"ats:workday:{company.token}",
+            external_id=bullets[0] if bullets else path,
+            title=item.get("title", ""),
+            company=org_name,
+            location=location,
+            url=f"https://{company.host}/{company.site}{path}",
+            published=_parse_workday_posted(item.get("postedOn", "")),
+        ))
+    return jobs
+
+
+def _fetch_workday_all(company: ATSCompany, keywords: list[str]) -> list[RawJob]:
+    """Search a Workday board once per keyword (boards are too big to list in full).
+
+    Args:
+        company: Entry with token=tenant, plus host and site.
+        keywords: Search terms; each becomes Workday's searchText.
+
+    Returns:
+        Unique postings across all keyword searches.
+    """
+    if not company.host or not company.site:
+        logger.error("Workday company %r needs both 'host' and 'site'", company.token)
+        return []
+
+    seen: set[str] = set()
+    all_jobs: list[RawJob] = []
+    for kw in keywords:
+        for page in range(WORKDAY_MAX_PAGES):
+            body = {
+                "appliedFacets": {},
+                "limit": WORKDAY_PAGE_SIZE,
+                "offset": page * WORKDAY_PAGE_SIZE,
+                "searchText": kw,
+            }
+            try:
+                resp = httpx.post(f"{_workday_base(company)}/jobs", json=body, timeout=ATS_TIMEOUT)
+                resp.raise_for_status()
+            except httpx.HTTPError:
+                break
+            data = resp.json()
+            for job in _parse_workday(data, company):
+                if job.external_id not in seen:
+                    seen.add(job.external_id)
+                    all_jobs.append(job)
+            if (page + 1) * WORKDAY_PAGE_SIZE >= data.get("total", 0):
+                break
+    return all_jobs
+
+
 PROVIDERS: dict[str, dict] = {
-    "smartrecruiters": {
-        "url": "https://api.smartrecruiters.com/v1/companies/{token}/postings?limit=100",
-        "parser": _parse_smartrecruiters,
-        "json": True,
-        "paginated": True,
-    },
+    # Providers with a "fetcher" handle their own requests and pagination.
+    "workday": {"fetcher": lambda c, s: _fetch_workday_all(c, s.keywords)},
+    "smartrecruiters": {"fetcher": lambda c, s: _fetch_smartrecruiters_all(c)},
+    **{name: {"fetcher": fn} for name, fn in EXTRA_FETCHERS.items()},
     "greenhouse": {
         "url": "https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true",
         "parser": _parse_greenhouse,
@@ -214,10 +331,9 @@ class ATSSource(Source):
                 logger.error("Unknown ATS provider %r for token %r", company.provider, company.token)
                 return []
 
-            # SmartRecruiters has its own paginated fetcher
-            if provider_info.get("paginated") and company.provider == "smartrecruiters":
+            if fetcher := provider_info.get("fetcher"):
                 try:
-                    raw_jobs = _fetch_smartrecruiters_all(company)
+                    raw_jobs = fetcher(company, settings)
                 except Exception:
                     logger.warning("ATS fetch failed: %s/%s", company.provider, company.token)
                     return []
@@ -250,7 +366,12 @@ class ATSSource(Source):
 
             matched = []
             for job in raw_jobs:
-                searchable = " ".join(filter(None, [job.title, job.description or "", job.job_type, job.tags]))
+                if settings.match_title_only:
+                    searchable = job.title
+                else:
+                    searchable = " ".join(
+                        filter(None, [job.title, job.description or "", job.job_type, job.tags])
+                    )
                 if _matches_keywords(searchable, settings.keywords):
                     matched.append(job)
 

@@ -1,8 +1,58 @@
-# Job Tracker
+# Job Tracker — Hungary edition
 
-A local tool that collects Werkstudent, Praktikum, and internship vacancies
-across Germany and provides a web dashboard to browse, filter, and track
-applications.
+A local tool that collects internship and student-job vacancies in and around
+**Budapest** and provides a web dashboard to browse, filter, and track
+applications. (Branch `hungary`; the original German tracker lives on `main`.)
+
+## Daily use
+
+```bash
+job-tracker scrape     # ~1-2 min; fetches all companies + boards
+job-tracker serve      # dashboard at http://127.0.0.1:8000
+```
+
+## Where jobs come from
+
+**Company career sites** (`ats.companies` in `config.yaml`) — 20 employers incl.
+MOL, MVM, Richter, Bosch, Siemens Energy, Henkel, Infineon, P&G, Veolia, Formlabs.
+Each platform has a connector:
+
+| Platform | Companies |
+|---|---|
+| Taleo | MOL |
+| karrierportal.hu | MVM (works for any `<x>.karrierportal.hu`) |
+| hrfelho.hu | Roust (works for any `<x>.hrfelho.hu`) |
+| SAP SuccessFactors | Richter, X-Chem, Tetra Pak, Audi |
+| Workday | GE Vernova, Flowserve, Morgan Stanley, BlackRock |
+| SmartRecruiters | Bosch, Louis Dreyfus |
+| Greenhouse | Formlabs |
+| Avature / Cornerstone / Eightfold / Oracle / Phenom | Siemens Energy / Henkel / Infineon / Emerson / P&G |
+
+**Student-job boards** (`hu_boards` in `config.yaml`): Zyntern, Mind-Diák, MUISZ,
+MADS, Schönherz. These only list student jobs, so the title-keyword filter is
+skipped and each board is narrowed to **English-friendly** ads instead (English
+category/search, or the ad itself written in English). Profession.hu is supported
+but **off by default** — read their terms of use before enabling it.
+
+## Filters
+
+- **Keywords** (`keywords`): English + Hungarian (`gyakornok` = intern,
+  `diákmunka` = student job, `trainee`, `working student`). With
+  `match_title_only: true` they must appear in the job **title**.
+- **Location** (`location_filter`): kept only if the location names Budapest or a
+  nearby town (Budaörs, Törökbálint, Gödöllő, Cegléd, …). Accent-insensitive.
+  Add `Hungary` to accept anywhere in the country.
+- **Language** (`hu_boards.skip_native_hungarian`): drops board ads that need
+  native/fluent Hungarian. Company-site jobs are not language-filtered — titles
+  in Hungarian usually mean Hungarian is required.
+
+## Adding a company
+
+Add a line under `ats.companies`. For Workday, copy host and site from the
+careers URL: `https://ms.wd5.myworkdayjobs.com/External` →
+`{ provider: workday, token: ms, host: ms.wd5.myworkdayjobs.com, site: External }`.
+Other platforms' required params are documented at the top of each connector in
+`app/scraping/ats_extra.py`.
 
 ## Quick Setup (one command)
 

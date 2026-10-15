@@ -1,24 +1,122 @@
-keywords: [Werkstudent, Werkstudentin, Working Student, Praktikum, Praktikant, Intern, Internship]
-location: ""              # "" = all of Germany; else e.g. "Berlin"
-radius_km: 50
-published_within_days: 2
+# Hungary profile — internships / student jobs in and around Budapest.
+# English + Hungarian terms. Matched as whole words against the job TITLE.
+#   gyakornok / gyakornoki = intern / internship
+#   diákmunka / diák       = student job / student
+keywords:
+  - Intern
+  - Internship
+  - Working Student
+  - Student
+  - Trainee
+  - Traineeship
+  - Gyakornok
+  - Gyakornoki
+  - Diákmunka
+  - Diák
+match_title_only: true
+
+# Drop any job whose location mentions none of these (accent-insensitive).
+# Budapest + commuter belt. Add/remove towns freely.
+location_filter:
+  - Budapest
+  - Pest megye
+  - Pest County
+  - Budaörs
+  - Törökbálint
+  - Érd
+  - Biatorbágy
+  - Budakeszi
+  - Szentendre
+  - Pomáz
+  - Dunakeszi
+  - Fót
+  - Gödöllő
+  - Vác
+  - Vecsés
+  - Gyál
+  - Üllő
+  - Ecser
+  - Szigetszentmiklós
+  - Dunaharaszti
+  - Százhalombatta
+  - Csömör
+  - Kerepes
+  - Cegléd             # ~1h by train; Infineon's main Hungarian site
+  # Add "Hungary" to accept anywhere in the country (incl. Debrecen, Győr...).
+
+published_within_days: 14
 database_url: "sqlite:///./jobtracker.sqlite3"
 
 sources:
-  arbeitsagentur: true
-  arbeitnow: true
-  adzuna: false           # set true once you add keys below / via env
-  ats: true
+  arbeitsagentur: false   # Germany only
+  arbeitnow: false        # DACH only
+  adzuna: false           # no Hungary coverage
+  byhand: false           # by_hand/ scrapers target German career sites
+  portals: false
+  ats: true               # company career sites below
+  hu_boards: true         # Hungarian student-job boards below
 
-adzuna:
-  app_id: ""              # or env ADZUNA_APP_ID
-  app_key: ""             # or env ADZUNA_APP_KEY
+# Student-job boards / cooperatives. These list only student jobs, so the
+# keyword filter is skipped; instead each is narrowed to English-friendly ads.
+hu_boards:
+  zyntern: true
+  minddiak: true          # keeps only ads written in English
+  muisz: true             # English site already hides Hungarian-only jobs
+  mads: true              # SSC/BSC category + "english" search
+  schonherz: true         # "jobs for foreign students" + "english" search (first page only)
+  profession: false       # biggest source, but read profession.hu's terms of use before enabling
+  skip_native_hungarian: true   # drop ads that need native/fluent Hungarian
 
-# Grow this list anytime — token is the slug in the company's careers URL.
-# e.g. jobs.lever.co/spotify -> {provider: lever, token: spotify}
+# Company career sites. Every entry was checked live on 2026-10-15.
+#   greenhouse/lever/ashby:  token = slug in the careers URL
+#   smartrecruiters:         token = company id; params.country narrows server-side
+#   workday:                 https://<host>/<site>, token = tenant (first part of host)
+#   successfactors:          any SAP career site that serves /googlebase.xml
+#   oracle / eightfold / phenom / taleo / avature / csod: see app/scraping/ats_extra.py
+#   karrierportal / hrfelho: token = subdomain (works for any company on those platforms)
 ats:
   companies:
-    - { provider: greenhouse, token: examplehq, name: "Example HQ" }
-    - { provider: lever,      token: examplehq }
-    - { provider: ashby,      token: examplehq }
-    - { provider: personio,   token: examplehq }
+    # --- Energy / oil & gas / utilities
+    - { provider: taleo, token: molgroup, name: MOL, host: molgroup.taleo.net, site: external,
+        params: { portal: "8205100397", location: "2205100397", lang: hu } }
+    - { provider: karrierportal, token: mvm, name: MVM Csoport }
+    - { provider: veolia_hu, token: veolia, name: Veolia Hungary }
+    - { provider: avature, token: siemens-energy, name: Siemens Energy, host: jobs.siemens-energy.com,
+        params: { path: en_US/jobs, filters: "29454=964532&29457=102154", city_field: schemaField_3_131 } }
+    - { provider: workday, token: gevernova, name: GE Vernova, host: gevernova.wd5.myworkdayjobs.com,
+        site: Vernova_ExternalSite }
+    # --- Pharma / chemicals
+    - { provider: successfactors, token: richter, name: Richter Gedeon, host: careers.gedeonrichter.com,
+        params: { country: HU } }
+    - { provider: successfactors, token: xchem, name: X-Chem, host: careers.xchemrx.com,
+        params: { country: HU } }
+    - { provider: csod, token: henkel, name: Henkel, params: { country: hu } }
+    - { provider: phenom, token: pg, name: Procter & Gamble, host: www.pgcareers.com,
+        params: { lang: en_global, site_country: global, page_id: page16, country: Hungary } }
+    # --- Engineering / manufacturing / tech
+    - { provider: smartrecruiters, token: BoschGroup, name: Bosch, params: { country: hu } }
+    - { provider: eightfold, token: infineon, name: Infineon, host: jobs.infineon.com,
+        params: { domain: infineon.com, location: Hungary } }
+    - { provider: oracle, token: emerson, name: "Emerson | NI", host: hdjq.fa.us2.oraclecloud.com,
+        site: CX_1, params: { location_id: "300000000228771" } }
+    - { provider: workday, token: flowserve, name: Flowserve, host: flowserve.wd1.myworkdayjobs.com,
+        site: applied }
+    - { provider: greenhouse, token: formlabs, name: Formlabs }
+    - { provider: successfactors, token: tetrapak, name: Tetra Pak, host: jobs.tetrapak.com,
+        params: { country: HU } }
+    - { provider: successfactors, token: audi, name: AUDI HUNGARIA, host: jobs.volkswagen-group.com,
+        params: { country: HU, path_contains: /Audi/ } }   # Győr: add "Győr" to location_filter to see these
+    # --- Trading / FMCG
+    - { provider: smartrecruiters, token: LouisDreyfusCompany, name: Louis Dreyfus Company,
+        params: { country: hu } }
+    - { provider: hrfelho, token: roust, name: Roust Hungary }
+    # --- Finance (Budapest service centres; not from the original list)
+    - { provider: workday, token: ms, name: Morgan Stanley, host: ms.wd5.myworkdayjobs.com, site: External }
+    - { provider: workday, token: blackrock, name: BlackRock, host: blackrock.wd1.myworkdayjobs.com,
+        site: BlackRock_Professional }
+
+# Not included:
+#   Pannonia Bio  - all jobs in Dunaföldvár (~90 km), no internships
+#   Paks II.      - 3 postings; the internship is mostly on the Paks site
+#   Atlas Copco   - job API is disallowed by robots.txt; ~15 HU jobs, no internships
+#   Müssig Engineering - no Hungarian listings online (speculative applications by email)

@@ -12,6 +12,7 @@ from app.models import Job
 from . import REGISTRY, discover
 from .base import RawJob
 from .dedup import make_dedup_key, make_uid
+from .location import compile_location_filter, matches_location
 from .tagger import compute_categories
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,7 @@ def run_pipeline(
 
 def _fetch_all(settings: Settings) -> list[RawJob]:
     all_jobs: list[RawJob] = []
+    location_pattern = compile_location_filter(settings.location_filter)
 
     for name, source_cls in REGISTRY.items():
         source_enabled = getattr(settings.sources, name, False)
@@ -111,8 +113,11 @@ def _fetch_all(settings: Settings) -> list[RawJob]:
         try:
             source = source_cls()
             jobs = source.fetch(settings)
-            logger.info("Source %r: fetched %d jobs", name, len(jobs))
-            all_jobs.extend(jobs)
+            kept = [j for j in jobs if matches_location(j.location, location_pattern)]
+            logger.info(
+                "Source %r: fetched %d jobs, %d after location filter", name, len(jobs), len(kept)
+            )
+            all_jobs.extend(kept)
         except Exception:
             logger.exception("Source %r failed", name)
 

@@ -17,10 +17,29 @@ class ATSCompany(BaseModel):
     provider: str
     token: str
     name: str | None = None
+    # Hostname-based providers (workday, oracle, eightfold, phenom), e.g.
+    # host="blackrock.wd1.myworkdayjobs.com", site="BlackRock_Professional"
+    host: str | None = None
+    site: str | None = None
+    # Provider-specific extras, e.g. {"location_id": "..."} for oracle; see config.example.yaml
+    params: dict[str, str] = {}
 
 
 class ATSConfig(BaseModel):
     companies: list[ATSCompany] = []
+
+
+class HuBoardsConfig(BaseModel):
+    """Hungarian student-job boards (see app/scraping/hu_boards.py)."""
+
+    zyntern: bool = True
+    minddiak: bool = True
+    muisz: bool = True
+    mads: bool = True
+    schonherz: bool = True
+    profession: bool = False  # check profession.hu terms of use before enabling
+    # Drop listings that require native-level Hungarian (where the board says so).
+    skip_native_hungarian: bool = True
 
 
 class SourcesConfig(BaseModel):
@@ -30,6 +49,7 @@ class SourcesConfig(BaseModel):
     ats: bool = True
     portals: bool = False
     byhand: bool = True
+    hu_boards: bool = False
 
 
 class Settings(BaseModel):
@@ -43,12 +63,19 @@ class Settings(BaseModel):
         "Internship",
     ]
     location: str = ""
+    # If non-empty, drop every scraped job whose location matches none of these
+    # place names (case- and accent-insensitive, whole words).
+    location_filter: list[str] = []
+    # Match keywords against the job title only, not the description. Keeps out
+    # senior roles that merely mention "mentoring interns".
+    match_title_only: bool = False
     radius_km: int = 50
     published_within_days: int = 2
     database_url: str = "sqlite:///./jobtracker.sqlite3"
     sources: SourcesConfig = SourcesConfig()
     adzuna: AdzunaConfig = AdzunaConfig()
     ats: ATSConfig = ATSConfig()
+    hu_boards: HuBoardsConfig = HuBoardsConfig()
     portal_companies_path: str = "companies.json"
     byhand_combined_path: str = "by_hand/all_jobs.json"
 

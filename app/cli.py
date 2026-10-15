@@ -5,7 +5,7 @@ import typer
 from app.config import load_settings_or_exit
 from app.db import init_db
 
-app = typer.Typer(help="German Werkstudent/Praktikum/Internship vacancy tracker")
+app = typer.Typer(help="Budapest internship / student-job vacancy tracker")
 
 
 @app.command()
