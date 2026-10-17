@@ -126,6 +126,73 @@ def serve(
 
 
 @app.command()
+def check(
+    name: str = typer.Argument(
+        ..., help="Company name/token from config.yaml (partial match), or a board name"
+    ),
+    config: str = typer.Option("config.yaml", help="Path to config file"),
+) -> None:
+    """Test one company or job board: fetch it live and show what the filters keep.
+
+    Writes nothing to the database. Use it after adding a company to config.yaml.
+    """
+    from app.scraping.ats import fetch_company_raw, matches_job_keywords
+    from app.scraping.hu_boards import BOARDS
+    from app.scraping.location import compile_location_filter, matches_location
+
+    settings = load_settings_or_exit(config)
+    location_pattern = compile_location_filter(settings.location_filter)
+    needle = name.lower()
+
+    if needle in BOARDS:
+        typer.echo(f"Board {needle} (keyword filter not applied to boards)")
+        try:
+            jobs = BOARDS[needle](settings)
+        except Exception as exc:
+            typer.echo(f"  FAILED: {exc}", err=True)
+            raise typer.Exit(1) from exc
+        kept = [j for j in jobs if matches_location(j.location, location_pattern)]
+        _print_check(len(jobs), None, kept, [j for j in jobs if j not in kept])
+        return
+
+    companies = [
+        c for c in settings.ats.companies
+        if needle in (c.name or "").lower() or needle in c.token.lower()
+    ]
+    if not companies:
+        typer.echo(
+            f"No company or board matching {name!r} in {config}. "
+            f"Boards: {', '.join(BOARDS)}", err=True,
+        )
+        raise typer.Exit(1)
+
+    for company in companies:
+        typer.echo(f"{company.name or company.token} [{company.provider}]")
+        try:
+            jobs = fetch_company_raw(company, settings)
+        except Exception as exc:
+            typer.echo(f"  FAILED: {exc}", err=True)
+            continue
+        by_keyword = [j for j in jobs if matches_job_keywords(j, settings)]
+        kept = [j for j in by_keyword if matches_location(j.location, location_pattern)]
+        _print_check(len(jobs), len(by_keyword), kept, [j for j in by_keyword if j not in kept])
+
+
+def _print_check(total: int, by_keyword: int | None, kept: list, dropped: list) -> None:
+    """Print the result of `check` for one source."""
+    line = f"  {total} postings fetched"
+    if by_keyword is not None:
+        line += f", {by_keyword} match keywords"
+    typer.echo(f"{line}, {len(kept)} kept after location filter")
+    for job in kept:
+        typer.echo(f"    + {job.title}  |  {job.location}  |  {job.url}")
+    for job in dropped[:10]:
+        typer.echo(f"    - {job.title}  |  {job.location or '(no location)'}  (location filtered out)")
+    if total == 0:
+        typer.echo("  Nothing fetched: check token/host/params, or the site has no openings.")
+
+
+@app.command()
 def stats(
     config: str = typer.Option("config.yaml", help="Path to config file"),
 ) -> None:

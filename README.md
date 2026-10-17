@@ -1,143 +1,132 @@
-# Job Tracker — Hungary edition
+# Budapest Internship Tracker
 
-A local tool that collects internship and student-job vacancies in and around
-**Budapest** and provides a web dashboard to browse, filter, and track
-applications. (Branch `hungary`; the original German tracker lives on `main`.)
+Collects **internships and student jobs in and around Budapest** from 20 company
+career sites (MOL, MVM, Richter, Bosch, Siemens Energy, Henkel, Infineon, P&G, …)
+and 5 student-job boards (Zyntern, Mind-Diák, MUISZ, MADS, Schönherz) into one
+dashboard on your own computer, where you can search them and track your
+applications.
 
-## Daily use
+It runs only on your machine: no account, no sign-up, nothing is sent anywhere.
 
-```bash
-job-tracker scrape     # ~1-2 min; fetches all companies + boards
-job-tracker serve      # dashboard at http://127.0.0.1:8000
-```
+> This is the `hungary` branch. The `main` branch is a different (German) setup —
+> make sure you cloned with `-b hungary`.
 
-## Where jobs come from
+---
 
-**Company career sites** (`ats.companies` in `config.yaml`) — 20 employers incl.
-MOL, MVM, Richter, Bosch, Siemens Energy, Henkel, Infineon, P&G, Veolia, Formlabs.
-Each platform has a connector:
+## 1. Install (once, ~5 minutes)
 
-| Platform | Companies |
-|---|---|
-| Taleo | MOL |
-| karrierportal.hu | MVM (works for any `<x>.karrierportal.hu`) |
-| hrfelho.hu | Roust (works for any `<x>.hrfelho.hu`) |
-| SAP SuccessFactors | Richter, X-Chem, Tetra Pak, Audi |
-| Workday | GE Vernova, Flowserve, Morgan Stanley, BlackRock |
-| SmartRecruiters | Bosch, Louis Dreyfus |
-| Greenhouse | Formlabs |
-| Avature / Cornerstone / Eightfold / Oracle / Phenom | Siemens Energy / Henkel / Infineon / Emerson / P&G |
+You need **Python 3.11 or newer** and **git**.
 
-**Student-job boards** (`hu_boards` in `config.yaml`): Zyntern, Mind-Diák, MUISZ,
-MADS, Schönherz. These only list student jobs, so the title-keyword filter is
-skipped and each board is narrowed to **English-friendly** ads instead (English
-category/search, or the ad itself written in English). Profession.hu is supported
-but **off by default** — read their terms of use before enabling it.
-
-## Filters
-
-- **Keywords** (`keywords`): English + Hungarian (`gyakornok` = intern,
-  `diákmunka` = student job, `trainee`, `working student`). With
-  `match_title_only: true` they must appear in the job **title**.
-- **Location** (`location_filter`): kept only if the location names Budapest or a
-  nearby town (Budaörs, Törökbálint, Gödöllő, Cegléd, …). Accent-insensitive.
-  Add `Hungary` to accept anywhere in the country.
-- **Language** (`hu_boards.skip_native_hungarian`): drops board ads that need
-  native/fluent Hungarian. Company-site jobs are not language-filtered — titles
-  in Hungarian usually mean Hungarian is required.
-
-## Adding a company
-
-Add a line under `ats.companies`. For Workday, copy host and site from the
-careers URL: `https://ms.wd5.myworkdayjobs.com/External` →
-`{ provider: workday, token: ms, host: ms.wd5.myworkdayjobs.com, site: External }`.
-Other platforms' required params are documented at the top of each connector in
-`app/scraping/ats_extra.py`.
-
-## Quick Setup (one command)
-
-**Mac / Linux:**
-```bash
-./setup.sh
-```
-
-**Windows:**
-```
-setup.bat
-```
-
-This installs uv (if needed), creates a virtual environment, installs all dependencies, copies the default config, and runs an initial scrape.
-
-## Manual Setup
-
-```bash
-# Clone and install
-uv venv .venv && source .venv/bin/activate
-uv pip install -e .
-
-# Create your config
-cp config.example.yaml config.yaml
-# Edit config.yaml — adjust keywords, location, and add ATS companies
-```
-
-## Usage
-
-### Scrape vacancies
-
-```bash
-job-tracker scrape                # fetch from all enabled sources
-job-tracker scrape --dry-run      # preview without writing to DB
-```
-
-### Open the dashboard
-
-```bash
-job-tracker serve                 # http://127.0.0.1:8000
-job-tracker serve --port 9000     # custom port
-```
-
-### Quick stats
-
-```bash
-job-tracker stats
-```
-
-## Sources
-
-| Source | Auth | Notes |
+| | Mac | Windows |
 |---|---|---|
-| Bundesagentur für Arbeit | None (public API key) | Germany's largest vacancy DB |
-| Arbeitnow | None | Tech/startup roles, DE-AT-CH |
-| Adzuna | Free API key | Aggregator; set `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` env vars or in config |
-| Company career boards | None | Greenhouse, Lever, Ashby, Personio — configured per company |
+| Python | [python.org/downloads](https://www.python.org/downloads/) | [python.org/downloads](https://www.python.org/downloads/) — tick **"Add Python to PATH"** in the installer |
+| git | run `git --version` in Terminal; macOS offers to install it | [git-scm.com/download/win](https://git-scm.com/download/win) |
 
-## Adding company career boards
-
-Add entries to `ats.companies` in `config.yaml`:
-
-```yaml
-ats:
-  companies:
-    - { provider: greenhouse, token: spotify, name: Spotify }
-    - { provider: lever,      token: figma }
-    - { provider: ashby,      token: linear, name: Linear }
-    - { provider: personio,   token: celonis, name: Celonis }
-```
-
-The `token` is the slug from the company's careers URL (e.g. `jobs.lever.co/figma` → token is `figma`). Re-run `job-tracker scrape` to fetch their postings.
-
-## Daily cron example
+Then open **Terminal** (Mac) or **Command Prompt** (Windows) and run:
 
 ```bash
-# Add to crontab -e
-0 8 * * * cd /path/to/job-tracker && .venv/bin/job-tracker scrape >> scrape.log 2>&1
+git clone -b hungary https://github.com/ibishovrauf/job-tracker.git budapest-jobs
+cd budapest-jobs
 ```
 
-## Tests
+Then the setup script — it installs everything, creates your `config.yaml`, and
+does a first collection of jobs:
+
+- **Mac:** `./setup.sh`
+- **Windows:** double-click `setup.bat` (or run `setup.bat`)
+
+## 2. Daily use
+
+Open a terminal in the `budapest-jobs` folder:
+
+| What | Mac | Windows |
+|---|---|---|
+| Collect new jobs (~1–2 min) | `.venv/bin/job-tracker scrape` | `.venv\Scripts\job-tracker scrape` |
+| Open the dashboard | `.venv/bin/job-tracker serve` | `.venv\Scripts\job-tracker serve` |
+
+With the dashboard running, open **http://127.0.0.1:8000** in your browser.
+Stop it with `Ctrl+C` in the terminal.
+
+You can also collect jobs from inside the dashboard: the **Refresh ATS** button
+(top right) runs the same collection in the background.
+
+> If you installed [uv](https://docs.astral.sh/uv/) you can instead type
+> `uv run job-tracker scrape` / `uv run job-tracker serve` on both systems.
+
+## 3. Using the dashboard
+
+- **Status** (dropdown on each row): move a job through
+  `NEW → SAVED → APPLIED → INTERVIEW → OFFER / REJECTED`, or mark it
+  `NOT_RELEVANT` to hide it. Jobs already seen are never shown as new again.
+- **Click a title** to see details and write **notes** (contact person, deadline…).
+- **Search / filters**: title or company, category, location
+  (e.g. `Budapest XIII`), source, date range.
+- **Export CSV** downloads everything, including your statuses and notes.
+- Ignore the *Big Companies*, *Portals* and *Matches* pages — they belong to the
+  German setup.
+
+## 4. Changing what it looks for
+
+Everything is in **`config.yaml`** (open it with any text editor).
+
+- **Add a company** → [docs/ADDING_A_COMPANY.md](docs/ADDING_A_COMPANY.md)
+- **Keywords, towns, job boards, Hungarian-language filter** →
+  [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
+- **Something not working?** → [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+
+After editing, test just the part you changed:
 
 ```bash
-uv pip install pytest
-pytest
+.venv/bin/job-tracker check henkel        # a company (Windows: .venv\Scripts\job-tracker check henkel)
+.venv/bin/job-tracker check zyntern       # a job board
 ```
 
-All HTTP is mocked — tests pass offline.
+It prints every job it found and why anything was dropped — it doesn't change
+your saved jobs.
+
+## 5. What it filters by default
+
+| Filter | Default | Change it in |
+|---|---|---|
+| Job title must contain | Intern, Internship, Trainee, Working Student, Student, Gyakornok, Diákmunka, Diák … | `keywords` |
+| Location must be | Budapest or a nearby town (Budaörs, Gödöllő, Érd, Cegléd, …) | `location_filter` |
+| Language | job-board ads that require native Hungarian are dropped | `hu_boards.skip_native_hungarian` |
+
+Company career-site jobs are **not** language-filtered. A Hungarian title
+(e.g. *Pénzügyi gyakornok*) usually means Hungarian is required; English titles
+are usually fine for English speakers.
+
+## 6. Run it automatically every morning (optional)
+
+**Mac:** run `crontab -e` and add (adjust the path):
+```
+0 8 * * * cd ~/budapest-jobs && .venv/bin/job-tracker scrape >> scrape.log 2>&1
+```
+
+**Windows:** open *Task Scheduler* → *Create Basic Task* → Daily, 08:00 →
+*Start a program*:
+- Program: `C:\Users\<you>\budapest-jobs\.venv\Scripts\job-tracker.exe`
+- Arguments: `scrape`
+- Start in: `C:\Users\<you>\budapest-jobs`
+
+## 7. Getting updates
+
+```bash
+git pull
+```
+Your `config.yaml` and saved jobs are never touched by updates. New companies
+added to `config.example.yaml` upstream can be copied into your `config.yaml`
+by hand.
+
+---
+
+### For developers
+
+```bash
+uv sync && uv run --with pytest pytest     # all HTTP is mocked; runs offline
+```
+Connectors: `app/scraping/ats.py` (Greenhouse, Lever, Ashby, SmartRecruiters,
+Personio, Workday), `app/scraping/ats_extra.py` (Taleo, SuccessFactors, Oracle,
+Eightfold, Phenom, Avature, Cornerstone, karrierportal.hu, hrfelho.hu, Veolia),
+`app/scraping/hu_boards.py` (student boards). Every site was checked against its
+robots.txt; please keep request rates low.

@@ -318,6 +318,60 @@ PROVIDERS: dict[str, dict] = {
 }
 
 
+class UnknownProviderError(ValueError):
+    """Raised when config names an ATS provider this tool doesn't support."""
+
+
+def fetch_company_raw(company: ATSCompany, settings: Settings) -> list[RawJob]:
+    """Fetch every posting for one company, before keyword filtering.
+
+    Args:
+        company: One entry from ats.companies.
+        settings: Loaded settings (some providers search by settings.keywords).
+
+    Returns:
+        All postings the board returned.
+
+    Raises:
+        UnknownProviderError: If company.provider is not supported.
+        httpx.HTTPError: If the board could not be reached.
+    """
+    provider_info = PROVIDERS.get(company.provider)
+    if not provider_info:
+        raise UnknownProviderError(
+            f"unknown provider {company.provider!r}; supported: {', '.join(sorted(PROVIDERS))}"
+        )
+    if fetcher := provider_info.get("fetcher"):
+        return fetcher(company, settings)
+
+    urls = provider_info.get("urls") or [provider_info["url"]]
+    last_error: httpx.HTTPError | None = None
+    for candidate_url in urls:
+        try:
+            resp = httpx.get(
+                candidate_url.format(token=company.token), timeout=ATS_TIMEOUT,
+                follow_redirects=True,
+            )
+            resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            last_error = exc
+            continue
+        if provider_info["json"]:
+            return provider_info["parser"](resp.json(), company)
+        return provider_info["parser"](resp.text, company)
+    assert last_error is not None
+    raise last_error
+
+
+def matches_job_keywords(job: RawJob, settings: Settings) -> bool:
+    """Apply the configured keyword filter (title-only or title + description)."""
+    if settings.match_title_only:
+        searchable = job.title
+    else:
+        searchable = " ".join(filter(None, [job.title, job.description or "", job.job_type, job.tags]))
+    return _matches_keywords(searchable, settings.keywords)
+
+
 @register("ats")
 class ATSSource(Source):
     name = "ats"
@@ -326,57 +380,17 @@ class ATSSource(Source):
         all_jobs: list[RawJob] = []
 
         def _fetch_company(company: ATSCompany) -> list[RawJob]:
-            provider_info = PROVIDERS.get(company.provider)
-            if not provider_info:
-                logger.error("Unknown ATS provider %r for token %r", company.provider, company.token)
+            try:
+                raw_jobs = fetch_company_raw(company, settings)
+            except Exception as exc:
+                logger.warning("ATS skip %s/%s: %s", company.provider, company.token, exc)
                 return []
-
-            if fetcher := provider_info.get("fetcher"):
-                try:
-                    raw_jobs = fetcher(company, settings)
-                except Exception:
-                    logger.warning("ATS fetch failed: %s/%s", company.provider, company.token)
-                    return []
-            else:
-                urls = provider_info.get("urls") or [provider_info["url"]]
-                resp = None
-                for candidate_url in urls:
-                    u = candidate_url.format(token=company.token)
-                    try:
-                        resp = httpx.get(u, timeout=ATS_TIMEOUT, follow_redirects=True)
-                        resp.raise_for_status()
-                        break
-                    except httpx.HTTPError:
-                        resp = None
-                        continue
-
-                if resp is None:
-                    logger.warning("ATS skip: %s/%s", company.provider, company.token)
-                    return []
-
-                try:
-                    if provider_info["json"]:
-                        data = resp.json()
-                        raw_jobs = provider_info["parser"](data, company)
-                    else:
-                        raw_jobs = provider_info["parser"](resp.text, company)
-                except Exception:
-                    logger.warning("ATS parse failed: %s/%s", company.provider, company.token)
-                    return []
-
-            matched = []
-            for job in raw_jobs:
-                if settings.match_title_only:
-                    searchable = job.title
-                else:
-                    searchable = " ".join(
-                        filter(None, [job.title, job.description or "", job.job_type, job.tags])
-                    )
-                if _matches_keywords(searchable, settings.keywords):
-                    matched.append(job)
-
+            matched = [job for job in raw_jobs if matches_job_keywords(job, settings)]
             if matched:
-                logger.info("ATS %s/%s: %d matched of %d", company.provider, company.token, len(matched), len(raw_jobs))
+                logger.info(
+                    "ATS %s/%s: %d matched of %d",
+                    company.provider, company.token, len(matched), len(raw_jobs),
+                )
             return matched
 
         with ThreadPoolExecutor(max_workers=ATS_WORKERS) as pool:
