@@ -36,11 +36,9 @@ echo "[OK] uv $(uv --version 2>/dev/null || echo 'installed')"
 cd "$(dirname "$0")"
 PROJECT_DIR="$(pwd)"
 
-echo "[*] Creating virtual environment..."
-uv venv .venv
-
-echo "[*] Installing dependencies..."
-uv pip install -e . --quiet
+echo "[*] Creating virtual environment and installing dependencies..."
+# uv sync installs the exact versions in uv.lock (newer sqlmodel/sqlalchemy break the app)
+uv sync --quiet
 
 # ── Copy config if needed ──
 if [ ! -f config.yaml ]; then

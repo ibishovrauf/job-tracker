@@ -55,11 +55,9 @@ echo [OK] uv installed
 cd /d "%~dp0"
 set "PROJECT_DIR=%cd%"
 
-echo [*] Creating virtual environment...
-uv venv .venv
-
-echo [*] Installing dependencies...
-uv pip install -e . --quiet
+echo [*] Creating virtual environment and installing dependencies...
+:: uv sync installs the exact versions in uv.lock (newer sqlmodel/sqlalchemy break the app)
+uv sync --quiet
 
 :: ── Copy config if needed ──
 if not exist config.yaml (
