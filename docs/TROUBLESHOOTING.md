@@ -1,16 +1,35 @@
 # Troubleshooting
 
-On Windows, replace `.venv/bin/job-tracker` with `.venv\Scripts\job-tracker`
-everywhere below.
+Commands below are run in **Terminal** from the app folder: first type
+`cd ~/BudapestJobs` (Mac installer) or `cd budapest-jobs` (git install).
+On Windows, replace `.venv/bin/job-tracker` with `.venv\Scripts\job-tracker`.
+
+**Most problems on a Mac are fixed by running the install line again** — it
+repairs the app and keeps your settings and saved jobs:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ibishovrauf/job-tracker/hungary/install-mac.sh | bash
+```
+
+### The installer says "Something went wrong"
+
+Read the line after it — "no internet connection" and "could not download" are
+usually temporary; run the install line again. Otherwise send a screenshot of the
+Terminal window to Rauf.
+
+### Double-clicking "Budapest Jobs" does nothing / opens a text editor
+
+Run the install line again; it re-creates the icon. If macOS says the file
+"can't be opened", right-click the icon → **Open** → **Open**.
 
 ### `command not found` / `'job-tracker' is not recognized`
 
-You're not in the project folder, or setup didn't finish. Run `cd budapest-jobs`
-(or wherever you cloned it), then use the full path `.venv/bin/job-tracker …`.
-If `.venv` doesn't exist, run `./setup.sh` / `setup.bat` again.
+You're not in the app folder (`cd ~/BudapestJobs`), or the install didn't finish
+— run the install line again (Windows/git: `setup.bat` / `./setup.sh`).
 
-### `python3 not found` / `Python 3.11+ required`
+### `python3 not found` / `Python 3.11+ required` (Windows / git install only)
 
+The Mac installer brings its own Python, so this only affects the manual setup.
 Install Python from [python.org/downloads](https://www.python.org/downloads/).
 On Windows, re-run the installer, choose *Modify*, and tick **Add Python to
 environment variables**. Close and reopen the terminal afterwards.
@@ -23,7 +42,8 @@ Compare with the same section in `config.example.yaml`.
 
 ### The dashboard page won't open
 
-- Is `job-tracker serve` still running in a terminal? Closing that terminal stops it.
+- Is the Terminal window from "Budapest Jobs" still open? Closing it stops the
+  dashboard — double-click the icon again.
 - Use **http://127.0.0.1:8000** (not https).
 - `address already in use` → it's already running in another terminal, or use
   another port: `job-tracker serve --port 8001` and open http://127.0.0.1:8001.
@@ -68,5 +88,6 @@ English results, search the dashboard for English words like `Intern` or
 
 ### Moving to a new computer
 
-Copy two files from the old project folder into the new one after setup:
+Install on the new computer, then copy two files from the old `BudapestJobs`
+folder into the new one (replace the existing ones):
 `config.yaml` (your settings) and `jobtracker.sqlite3` (your jobs, statuses and notes).

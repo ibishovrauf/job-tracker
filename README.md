@@ -8,50 +8,64 @@ applications.
 
 It runs only on your machine: no account, no sign-up, nothing is sent anywhere.
 
-> This is the `hungary` branch. The `main` branch is a different (German) setup —
-> make sure you cloned with `-b hungary`.
-
 ---
 
-## 1. Install (once, ~5 minutes)
+## 1. Install on a Mac (once, 2–5 minutes)
 
-You need **Python 3.11 or newer** and **git**.
+**Nothing needs to be installed first** — no Python, no git, no admin password.
 
-| | Mac | Windows |
-|---|---|---|
-| Python | [python.org/downloads](https://www.python.org/downloads/) | [python.org/downloads](https://www.python.org/downloads/) — tick **"Add Python to PATH"** in the installer |
-| git | run `git --version` in Terminal; macOS offers to install it | [git-scm.com/download/win](https://git-scm.com/download/win) |
+1. Open **Terminal**: press `⌘ + Space`, type `Terminal`, press Enter.
+2. Copy this whole line, paste it into Terminal (`⌘ + V`), press Enter:
 
-Then open **Terminal** (Mac) or **Command Prompt** (Windows) and run:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/ibishovrauf/job-tracker/hungary/install-mac.sh | bash
+   ```
+
+3. Wait until it says **All done!** If macOS asks *"Terminal would like to access
+   files in your Desktop folder"*, click **OK** (that's for the icon).
+
+You now have a **Budapest Jobs** icon on your Desktop, and the app lives in the
+`BudapestJobs` folder in your home folder.
+
+**Update** to the newest version any time: run the same line again. Your
+settings and saved jobs are kept.
+
+<details>
+<summary>Windows, or installing by hand with git</summary>
+
+Install [Python 3.11+](https://www.python.org/downloads/) (Windows: tick **"Add
+Python to PATH"**) and [git](https://git-scm.com/downloads), then:
 
 ```bash
 git clone -b hungary https://github.com/ibishovrauf/job-tracker.git budapest-jobs
 cd budapest-jobs
 ```
+Run `./setup.sh` (Mac/Linux) or double-click `setup.bat` (Windows). Then use
+`.venv/bin/job-tracker serve` (Windows: `.venv\Scripts\job-tracker serve`) and
+open http://127.0.0.1:8000.
 
-Then the setup script — it installs everything, creates your `config.yaml`, and
-does a first collection of jobs:
-
-- **Mac:** `./setup.sh`
-- **Windows:** double-click `setup.bat` (or run `setup.bat`)
+> The `main` branch is a different (German) setup — always clone with `-b hungary`.
+</details>
 
 ## 2. Daily use
 
-Open a terminal in the `budapest-jobs` folder:
+**Double-click "Budapest Jobs" on your Desktop.** It:
+1. opens the dashboard in your browser, and
+2. collects today's new jobs (1–2 minutes) — then refresh the page to see them.
 
-| What | Mac | Windows |
-|---|---|---|
-| Collect new jobs (~1–2 min) | `.venv/bin/job-tracker scrape` | `.venv\Scripts\job-tracker scrape` |
-| Open the dashboard | `.venv/bin/job-tracker serve` | `.venv\Scripts\job-tracker serve` |
+Keep the Terminal window that opens; **close it when you're done** (that stops
+the dashboard). Double-clicking again while it's open just reopens the browser.
 
-With the dashboard running, open **http://127.0.0.1:8000** in your browser.
-Stop it with `Ctrl+C` in the terminal.
+<details>
+<summary>Using the terminal instead</summary>
 
-You can also collect jobs from inside the dashboard: the **Refresh ATS** button
-(top right) runs the same collection in the background.
-
-> If you installed [uv](https://docs.astral.sh/uv/) you can instead type
-> `uv run job-tracker scrape` / `uv run job-tracker serve` on both systems.
+```bash
+cd ~/BudapestJobs
+.venv/bin/job-tracker scrape      # collect new jobs
+.venv/bin/job-tracker serve       # dashboard at http://127.0.0.1:8000 (Ctrl+C stops it)
+```
+The **Refresh ATS** button in the dashboard also collects new jobs.
+</details>
 
 ## 3. Using the dashboard
 
@@ -74,10 +88,12 @@ Everything is in **`config.yaml`** (open it with any text editor).
   [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
 - **Something not working?** → [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
-After editing, test just the part you changed:
+Your settings file is `~/BudapestJobs/config.yaml` (in Finder: *Go → Home →
+BudapestJobs*). After editing, test just the part you changed in Terminal:
 
 ```bash
-.venv/bin/job-tracker check henkel        # a company (Windows: .venv\Scripts\job-tracker check henkel)
+cd ~/BudapestJobs
+.venv/bin/job-tracker check henkel        # a company
 .venv/bin/job-tracker check zyntern       # a job board
 ```
 
@@ -98,9 +114,9 @@ are usually fine for English speakers.
 
 ## 6. Run it automatically every morning (optional)
 
-**Mac:** run `crontab -e` and add (adjust the path):
+**Mac:** run `crontab -e` and add:
 ```
-0 8 * * * cd ~/budapest-jobs && .venv/bin/job-tracker scrape >> scrape.log 2>&1
+0 8 * * * cd ~/BudapestJobs && .venv/bin/job-tracker scrape >> scrape.log 2>&1
 ```
 
 **Windows:** open *Task Scheduler* → *Create Basic Task* → Daily, 08:00 →
@@ -111,9 +127,7 @@ are usually fine for English speakers.
 
 ## 7. Getting updates
 
-```bash
-git pull
-```
+Run the install line from step 1 again (if you installed with git: `git pull`).
 Your `config.yaml` and saved jobs are never touched by updates. New companies
 added to `config.example.yaml` upstream can be copied into your `config.yaml`
 by hand.
